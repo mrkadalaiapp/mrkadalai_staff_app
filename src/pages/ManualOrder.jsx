@@ -325,7 +325,8 @@ const ManualOrder = () => {
                     category: product.category.toLowerCase(),
                     img: product.imageUrl || 'https://via.placeholder.com/100',
                     description: product.description,
-                    quantityAvailable: product.quantityAvailable
+                    quantityAvailable: product.quantityAvailable,
+                    recipes: product.recipes || []
                 }))
                 
                 setMenuItems(transformedProducts)
@@ -340,43 +341,83 @@ const ManualOrder = () => {
         fetchProducts()
     }, [outletId])
 
+    const canAddQuantity = (product, additionalQty) => {
+        const requiredMap = {};
+        
+        // Sum current cart simulation
+        selectedItems.forEach(cartItem => {
+            const qty = cartItem.id === product.id ? cartItem.quantity + additionalQty : cartItem.quantity;
+            if (cartItem.recipes) {
+                cartItem.recipes.forEach(r => {
+                    const id = r.inventoryItemId;
+                    if (!requiredMap[id]) requiredMap[id] = { req: 0, available: r.inventoryItem.currentStock, name: r.inventoryItem.itemName };
+                    requiredMap[id].req += r.quantityPerServing * qty;
+                });
+            }
+        });
+
+        // Add the new product explicitly if it is missing from cart simulation
+        if (!selectedItems.find(i => i.id === product.id)) {
+            if (product.recipes) {
+                product.recipes.forEach(r => {
+                    const id = r.inventoryItemId;
+                    if (!requiredMap[id]) requiredMap[id] = { req: 0, available: r.inventoryItem.currentStock, name: r.inventoryItem.itemName };
+                    requiredMap[id].req += r.quantityPerServing * additionalQty;
+                });
+            }
+        }
+
+        for (const id in requiredMap) {
+            if (requiredMap[id].req > requiredMap[id].available) {
+                return { success: false, reason: requiredMap[id].name };
+            }
+        }
+        return { success: true };
+    };
+
     const addToOrder = (item) => {
-        if (item.quantityAvailable === 0) {
-            toast.error(`${item.name} is out of stock.`);
+        const exists = selectedItems.find(i => i.id === item.id);
+        const currentQty = exists ? exists.quantity : 0;
+        
+        const check = canAddQuantity(item, 1);
+        if (!check.success) {
+            toast.error(`Out of stock! Insufficient shared raw material: ${check.reason}`);
             return;
         }
 
-        const exists = selectedItems.find(i => i.id === item.id)
         if (exists) {
-            // Check if we can add more (don't exceed available quantity)
-            if (exists.quantity < item.quantityAvailable) {
-                setSelectedItems(selectedItems.map(i =>
-                    i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i
-                ))
-            } else {
-                toast.error(`Only ${item.quantityAvailable} units available for ${item.name}`)
-            }
+            setSelectedItems(selectedItems.map(i =>
+                i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i
+            ));
         } else {
-            setSelectedItems([...selectedItems, { ...item, quantity: 1 }])
+            setSelectedItems([...selectedItems, { ...item, quantity: 1 }]);
         }
     }
 
     const removeFromOrder = (itemId) => {
-        setSelectedItems(selectedItems.filter(item => item.id !== itemId))
+        setSelectedItems(selectedItems.filter(item => item.id !== itemId));
     }
 
     const updateQuantity = (itemId, newQuantity) => {
         if (newQuantity === 0) {
-            removeFromOrder(itemId)
+            removeFromOrder(itemId);
         } else {
-            const item = menuItems.find(i => i.id === itemId)
-            if (newQuantity > item.quantityAvailable) {
-                toast.error(`Only ${item.quantityAvailable} units available for ${item.name}`)
-                return
+            const item = menuItems.find(i => i.id === itemId);
+            const exists = selectedItems.find(i => i.id === itemId);
+            const delta = newQuantity - (exists ? exists.quantity : 0);
+            
+            // Only strictly check bounds if attempting to INCREASE quantity
+            if (delta > 0) {
+                const check = canAddQuantity(item, delta);
+                if (!check.success) {
+                    toast.error(`Out of stock! Insufficient shared raw material: ${check.reason}`);
+                    return;
+                }
             }
-            setSelectedItems(selectedItems.map(item =>
-                item.id === itemId ? { ...item, quantity: newQuantity } : item
-            ))
+
+            setSelectedItems(selectedItems.map(i =>
+                i.id === itemId ? { ...i, quantity: newQuantity } : i
+            ));
         }
     }
 
@@ -450,7 +491,8 @@ const ManualOrder = () => {
                 category: product.category.toLowerCase(),
                 img: product.imageUrl || 'https://via.placeholder.com/100',
                 description: product.description,
-                quantityAvailable: product.quantityAvailable
+                quantityAvailable: product.quantityAvailable,
+                recipes: product.recipes || []
             }))
             setMenuItems(transformedProducts)
 
