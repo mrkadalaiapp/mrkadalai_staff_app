@@ -42,7 +42,7 @@ const Header = ({ onMenuClick }) => {
                     >
                         <Menu className="h-6 w-6" />
                     </button>
-                    <img src={'https://mrkadalai-files.s3.ap-south-1.amazonaws.com/logo3.png'} alt="logo" className="h-8 w-auto" />
+                    <img src={'https://ezjbzdcdqvarkkbteptl.supabase.co/storage/v1/object/public/images/logo3.png'} alt="logo" className="h-8 w-auto" />
 
                     {/* Outlet Name Display */}
                     <div className="flex-1 max-w-md mx-4">
