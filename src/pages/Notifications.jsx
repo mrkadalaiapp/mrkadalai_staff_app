@@ -8,7 +8,6 @@ import { toast } from 'react-hot-toast';
 import Loader from '../components/ui/Loader';
 
 const Notifications = () => {
-    // --- All your existing state and logic remains unchanged ---
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [allOrders, setAllOrders] = useState([]);
@@ -21,9 +20,8 @@ const Notifications = () => {
 
     const navigate = useNavigate();
     const { outletId } = useOutletDetails();
-    const orderRefs = useRef({}); // Ref for scrolling to orders
+    const orderRefs = useRef({});
 
-    // --- NEW HELPER FUNCTIONS to format date and slot ---
     const formatDate = (dateString) => {
         if (!dateString) return 'N/A';
         return new Date(dateString).toLocaleDateString('en-GB', {
@@ -47,7 +45,7 @@ const Notifications = () => {
             };
             return `${formatHour(startTime)} - ${formatHour(endTime)}`;
         } catch (e) {
-            return slot; // Fallback if format is unexpected
+            return slot;
         }
     };
 
@@ -65,17 +63,15 @@ const Notifications = () => {
         setOrdersLoading(true);
         setOrdersError('');
         try {
-            // Using the endpoint that fetches PENDING orders
             const response = await apiRequest(`/staff/outlets/get-current-order/${outletId}/`);
             if (response.orders) {
                 const appOrders = response.orders
-                    .filter(order => order.type?.toLowerCase() === 'app') // Ensure it's an app order
+                    .filter(order => order.type?.toLowerCase() === 'app')
                     .map(order => ({
                         id: `#${order.id}`,
                         customer: order.customer?.user?.name || 'Guest',
                         date: new Date(order.createdAt).toLocaleDateString(),
                         time: new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                        // --- ADDED deliveryDate and deliverySlot ---
                         deliveryDate: formatDate(order.deliveryDate),
                         deliverySlot: formatSlot(order.deliverySlot),
                         items: order.items.map(item => ({
@@ -86,7 +82,8 @@ const Notifications = () => {
                         })),
                         totalItems: order.items.reduce((sum, item) => sum + item.quantity, 0),
                         status: order.status.toLowerCase(),
-                        orderId: order.id // Use the actual order ID for actions
+                        orderId: order.id,
+                        createdAt: order.createdAt
                     }));
                 setAllOrders(appOrders);
             } else {
@@ -100,8 +97,6 @@ const Notifications = () => {
             setOrdersLoading(false);
         }
     };
-
-
 
     const handleOrderAction = (order, action) => {
         setSelectedOrder(order);
@@ -123,7 +118,7 @@ const Notifications = () => {
                 }),
             });
             toast.success(`Order ${selectedOrder.id} marked as ${status.toLowerCase()}.`);
-            fetchPendingOrders(); // Re-fetch to get the latest list
+            fetchPendingOrders();
             handleCloseOrderModal();
         } catch (err) {
             toast.error(err.message || 'Error updating order');
@@ -138,23 +133,6 @@ const Notifications = () => {
         setOrderModalAction('');
     };
     
-    const getSortedOrders = () => {
-        return [...allOrders].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-    };
-    
-
-    
-    const handleOrderStackClick = (orderId) => {
-        const ref = orderRefs.current[orderId];
-        if (ref) {
-            ref.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            ref.classList.add('ring-2', 'ring-indigo-500', 'ring-offset-2');
-            setTimeout(() => {
-                ref.classList.remove('ring-2', 'ring-indigo-500', 'ring-offset-2');
-            }, 1500);
-        }
-    };
-
     const handleRefresh = () => {
         fetchPendingOrders();
     };
@@ -248,17 +226,21 @@ const Notifications = () => {
                 )}
             </div>
 
-            <Modal isOpen={showOrderModal} onClose={handleCloseOrderModal} title={orderModalAction === 'delivered' ? 'Confirm Delivery' : 'Confirm Cancellation'} footer={
-                <div className="space-x-2">
-                    <Button variant="secondary" onClick={handleCloseOrderModal} disabled={orderActionLoading}>Cancel</Button>
-                    <Button variant={orderModalAction === 'delivered' ? 'success' : 'danger'} onClick={handleConfirmOrderAction} disabled={orderActionLoading}>
-                        {orderActionLoading ? 'Processing...' : 'Confirm'}
-                    </Button>
-                </div>
-            }>
+            <Modal 
+                isOpen={showOrderModal} 
+                onClose={handleCloseOrderModal} 
+                title={orderModalAction === 'delivered' ? 'Confirm Delivery' : 'Confirm Cancellation'} 
+                footer={
+                    <div className="space-x-2">
+                        <Button variant="secondary" onClick={handleCloseOrderModal} disabled={orderActionLoading}>Cancel</Button>
+                        <Button variant={orderModalAction === 'delivered' ? 'success' : 'danger'} onClick={handleConfirmOrderAction} disabled={orderActionLoading}>
+                            {orderActionLoading ? 'Processing...' : 'Confirm'}
+                        </Button>
+                    </div>
+                }
+            >
                 <p className="text-gray-600">{orderModalAction === 'delivered' ? `Mark order ${selectedOrder?.id} as delivered?` : `Cancel order ${selectedOrder?.id}?`}</p>
             </Modal>
-
         </div>
     );
 };
