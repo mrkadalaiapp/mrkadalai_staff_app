@@ -178,8 +178,16 @@ const OrderHistory = () => {
         }
     };
 
-    // Transform orders data for table
-    const orderTableData = orders.map(order => {
+    // Search state
+    const [searchQuery, setSearchQuery] = useState('')
+
+    // Transform orders data for table with filtering
+    const filteredOrders = orders.filter(order => 
+        String(order.orderId).toLowerCase().includes(searchQuery.toLowerCase()) ||
+        order.customerName.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+
+    const orderTableData = filteredOrders.map(order => {
         const itemDisplay =
             order.items.length > 2
                 ? order.items
@@ -207,13 +215,22 @@ const OrderHistory = () => {
         <div className="space-y-6">
             <div className="flex justify-between items-center flex-wrap gap-2">
                 <h1 className="text-2xl font-bold">Order History</h1>
-                <Button
-                    variant="secondary"
-                    onClick={downloadExcel}
-                    disabled={loading || orders.length === 0}
-                >
-                    Download Excel
-                </Button>
+                <div className="flex gap-2 items-center">
+                    <input 
+                        type="text"
+                        placeholder="Search ID or Customer..."
+                        value={searchQuery}
+                        onChange={e => setSearchQuery(e.target.value)}
+                        className="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-200 outline-none w-64 shadow-sm"
+                    />
+                    <Button
+                        variant="secondary"
+                        onClick={downloadExcel}
+                        disabled={loading || orders.length === 0}
+                    >
+                        Download Excel
+                    </Button>
+                </div>
             </div>
             
             <div className="flex justify-between items-center flex-wrap gap-2">

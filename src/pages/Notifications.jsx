@@ -9,14 +9,8 @@ import Loader from '../components/ui/Loader';
 
 const Notifications = () => {
     // --- All your existing state and logic remains unchanged ---
-    const [activeTab, setActiveTab] = useState('orders');
-    const [stockData, setStockData] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-    const [showRestockModal, setShowRestockModal] = useState(false);
-    const [selectedItem, setSelectedItem] = useState(null);
-    const [quantity, setQuantity] = useState('');
-    const [modalLoading, setModalLoading] = useState(false);
     const [allOrders, setAllOrders] = useState([]);
     const [ordersLoading, setOrdersLoading] = useState(false);
     const [ordersError, setOrdersError] = useState('');
@@ -59,13 +53,9 @@ const Notifications = () => {
 
     useEffect(() => {
         if (outletId) {
-            if (activeTab === 'orders') {
-                fetchPendingOrders();
-            } else if (activeTab === 'inventory') {
-                fetchStocks();
-            }
+            fetchPendingOrders();
         }
-    }, [outletId, activeTab]);
+    }, [outletId]);
 
     const fetchPendingOrders = async () => {
         if (!outletId) {
@@ -111,52 +101,7 @@ const Notifications = () => {
         }
     };
 
-    const fetchStocks = async () => {
-        if (!outletId) {
-            setError('Outlet ID not found');
-            return;
-        }
-        setLoading(true);
-        setError('');
-        try {
-            const response = await apiRequest(`/staff/outlets/get-stocks/${outletId}/`);
-            if (response.stocks) {
-                setStockData(response.stocks);
-            }
-        } catch (err) {
-            setError(err.message);
-        } finally {
-            setLoading(false);
-        }
-    };
-    
-    const handleRestock = async () => {
-        if (!quantity || !selectedItem || !outletId) {
-            toast.error('Please enter a valid quantity');
-            return;
-        }
-        setModalLoading(true);
-        try {
-            await apiRequest('/staff/outlets/add-stock/', {
-                method: 'POST',
-                body: { productId: selectedItem.id, outletId, addedQuantity: parseInt(quantity) }
-            });
-            handleCloseModal();
-            await fetchStocks();
-            toast.success(`${selectedItem.name} restocked successfully!`);
-        } catch (err) {
-            toast.error(err.message || 'Error restocking item');
-        } finally {
-            setModalLoading(false);
-        }
-    };
 
-    const handleCloseModal = () => {
-        setShowRestockModal(false);
-        setSelectedItem(null);
-        setQuantity('');
-        setError('');
-    };
 
     const handleOrderAction = (order, action) => {
         setSelectedOrder(order);
@@ -197,9 +142,7 @@ const Notifications = () => {
         return [...allOrders].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
     };
     
-    const filterStockByCategory = () => {
-        return stockData.filter(item => ['Meals', 'Starters', 'Desserts', 'Beverages'].includes(item.category));
-    };
+
     
     const handleOrderStackClick = (orderId) => {
         const ref = orderRefs.current[orderId];
@@ -213,11 +156,7 @@ const Notifications = () => {
     };
 
     const handleRefresh = () => {
-        if (activeTab === 'orders') {
-            fetchPendingOrders();
-        } else if (activeTab === 'inventory') {
-            fetchStocks();
-        }
+        fetchPendingOrders();
     };
     
     return (
@@ -229,7 +168,7 @@ const Notifications = () => {
             <div className="flex justify-between items-center">
                 <div className="flex items-center gap-4">
                     <h2 className="text-2xl font-bold text-gray-800">
-                       {activeTab === 'orders' ? 'Pending App Orders' : 'Inventory'}
+                       Pending App Orders
                     </h2>
                     <Button
                         variant="black"
@@ -239,117 +178,13 @@ const Notifications = () => {
                         {loading || ordersLoading ? 'Refreshing...' : 'Refresh'}
                     </Button>
                 </div>
-                <div className="flex space-x-4">
-                    <Button variant={activeTab === 'orders' ? 'black' : 'secondary'} onClick={() => setActiveTab('orders')}>Orders</Button>
-                    <Button variant={activeTab === 'inventory' ? 'black' : 'secondary'} onClick={() => setActiveTab('inventory')}>Inventory</Button>
-                </div>
+
             </div>
 
-            {activeTab === 'orders' && (
-                <div className="space-y-6">
-                    {ordersLoading && <div className="flex justify-center items-center text-center py-4 text-gray-600"><Loader/></div>}
-                    
-                    {!ordersLoading && allOrders.length > 0 && (
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
-                            {getSortedOrders().slice(0, 6).map((order) => (
-                                <div
-                                    key={order.id}
-                                    onClick={() => handleOrderStackClick(order.id)}
-                                    className="border-2 rounded-lg p-2 text-center shadow-sm h-16 flex items-center justify-center cursor-pointer transition-transform transform hover:scale-105 bg-yellow-100 text-yellow-800 border-yellow-300"
-                                >
-                                    <span className="text-sm font-semibold">{order.id}</span>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-
-                    {!ordersLoading && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 max-h-[65vh] overflow-y-auto scrollbar-hide p-1">
-                            {getSortedOrders().length === 0 ? (
-                                <div className="col-span-full text-center py-10">
-                                    <p className="text-lg font-semibold text-gray-700">All caught up!</p>
-                                    <p className="text-gray-500">No new app orders at the moment.</p>
-                                </div>
-                            ) : (
-                                getSortedOrders().map((order, index) => (
-                                    <div
-                                        key={`${order.id}-${index}`}
-                                        ref={el => (orderRefs.current[order.id] = el)}
-                                        className="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col transition-all duration-300"
-                                    >
-                                        <div className="p-5">
-                                            <div className="flex justify-between items-start mb-3">
-                                                <div>
-                                                    <h3 className="text-lg font-bold text-gray-900">{order.id}</h3>
-                                                    <p className="text-sm text-gray-500">by {order.customer}</p>
-                                                    {/* --- MODIFIED: Displaying Delivery Info --- */}
-                                                    <div className="text-sm font-semibold text-indigo-600 mt-1">
-                                                        <span>{order.deliveryDate}</span>
-                                                        <span className="mx-2">|</span>
-                                                        <span>{order.deliverySlot}</span>
-                                                    </div>
-                                                </div>
-                                                <span className="px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800">
-                                                    Pending
-                                                </span>
-                                            </div>
-                                            <p className="text-xs text-gray-400 mb-4">{order.date} at {order.time}</p>
-                                        </div>
-                                        <div className="flex-grow p-5 pt-0 space-y-3">
-                                            {order.items.slice(0, 3).map((item, itemIndex) => (
-                                                <div key={itemIndex} className="flex justify-between items-center text-sm">
-                                                    <p className="text-gray-600">{item.name} <span className="text-gray-400">×{item.qty}</span></p>
-                                                    <p className="font-medium text-gray-800">{item.price}</p>
-                                                </div>
-                                            ))}
-                                            {order.items.length > 3 && <p className="text-sm text-gray-400 text-center pt-1">+ {order.items.length - 3} more items</p>}
-                                        </div>
-                                        <div className="p-4 bg-gray-50 border-t border-gray-100 rounded-b-xl">
-                                            <div className="flex space-x-3">
-                                                <Button variant="success" className="w-full" onClick={() => handleOrderAction(order, 'delivered')}>Delivered</Button>
-                                                <Button variant="danger" className="w-full" onClick={() => handleOrderAction(order, 'cancel')}>Cancel</Button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                    )}
                 </div>
             )}
             
-            {activeTab === 'inventory' && (
-                // --- Your inventory JSX remains unchanged ---
-                 <div className="space-y-6">
-                    {loading && <div className="flex justify-center items-center text-center py-4"><Loader/></div>}
-                    {!loading && (
-                        <div className="max-h-[500px] overflow-y-auto pr-2" style={{ scrollBehavior: 'smooth', scrollbarWidth: 'thin', scrollbarColor: 'rgba(156, 163, 175, 0.5) transparent' }}>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                                {filterStockByCategory().length === 0 ? (
-                                    <div className="col-span-full text-center py-8 text-gray-500">No food items found</div>
-                                ) : (
-                                    filterStockByCategory().map((item, idx) => (
-                                        <div key={`${item.id}-${idx}`} className="bg-white border border-gray-300 rounded-lg p-4 shadow space-y-3">
-                                            <div className="text-sm font-semibold text-gray-800">{item.quantity <= item.threshold ? 'Low Stock' : 'Sufficient Stock'}</div>
-                                            <div className="text-sm text-gray-700">Item: <span className="font-medium">{item.name}</span></div>
-                                            <div className="text-sm text-gray-700">Stock Level: <span className="font-medium">{item.quantity}</span></div>
-                                            <div className="text-sm text-gray-700">Status:{' '}
-                                                <span className={`font-semibold ${item.quantity <= item.threshold ? 'text-red-600' : item.quantity <= item.threshold * 1.5 ? 'text-yellow-600' : 'text-green-600'}`}>
-                                                    {item.quantity === 0 ? 'Out of Stock' : item.quantity <= item.threshold ? 'Critical' : 'Normal'}
-                                                </span>
-                                            </div>
-                                            <div className="flex justify-between items-center pt-2">
-                                                <Button size="sm" variant='success' onClick={() => { setSelectedItem(item); setShowRestockModal(true); }}>Restock</Button>
-                                                <span className="text-xs text-gray-400 underline cursor-pointer" onClick={() => navigate('/inventory')}>View Inventory</span>
-                                            </div>
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-                        </div>
-                    )}
-                </div>
-            )}
+
 
             <Modal isOpen={showOrderModal} onClose={handleCloseOrderModal} title={orderModalAction === 'delivered' ? 'Confirm Delivery' : 'Confirm Cancellation'} footer={
                 <div className="space-x-2">
@@ -361,39 +196,7 @@ const Notifications = () => {
             }>
                 <p className="text-gray-600">{orderModalAction === 'delivered' ? `Mark order ${selectedOrder?.id} as delivered?` : `Cancel order ${selectedOrder?.id}?`}</p>
             </Modal>
-            <Modal isOpen={showRestockModal} onClose={handleCloseModal} title={`Restock: ${selectedItem?.name}`} footer={
-                <div className="space-x-2">
-                    <Button variant="secondary" onClick={handleCloseModal} disabled={modalLoading}>Cancel</Button>
-                    <Button variant="success" onClick={handleRestock} disabled={modalLoading || !quantity}>
-                        {modalLoading ? 'Processing...' : 'Add Stock'}
-                    </Button>
-                </div>
-            }>
-                {selectedItem && (
-                    <div className="space-y-4">
-                        <table className="w-full text-sm border border-gray-300 rounded">
-                            <thead className="bg-gray-100">
-                                <tr>
-                                    <th className="p-2 border border-gray-300 text-left">Item</th>
-                                    <th className="p-2 border border-gray-300 text-left">Current Stock</th>
-                                    <th className="p-2 border border-gray-300 text-left">Threshold</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td className="p-2 border border-gray-300">{selectedItem.name}</td>
-                                    <td className="p-2 border border-gray-300">{selectedItem.quantity}</td>
-                                    <td className="p-2 border border-gray-300">{selectedItem.threshold}</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Quantity to Add</label>
-                            <input type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="w-full p-2 border rounded" placeholder="Enter quantity to add" min="1" disabled={modalLoading} />
-                        </div>
-                    </div>
-                )}
-            </Modal>
+
         </div>
     );
 };
