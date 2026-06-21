@@ -108,18 +108,23 @@ export const AuthProvider = ({ children }) => {
         try {
             const response = await authService.checkAuth();
             if (response && response.user) {
-                const userData = {
-                    user: response.user,
-                    outlet: response.user.outlet,
-                    permissions: response.user.staffDetails?.permissions || []
-                };
+                if (response.user.role === 'STAFF') {
+                    const userData = {
+                        user: response.user,
+                        outlet: response.user.outlet,
+                        permissions: response.user.staffDetails?.permissions || []
+                    };
 
-                // Store outlet details in localStorage
-                if (response.user.outlet) {
-                    storeOutletDetails(response.user.outlet);
+                    // Store outlet details in localStorage
+                    if (response.user.outlet) {
+                        storeOutletDetails(response.user.outlet);
+                    }
+
+                    dispatch({ type: 'LOGIN_SUCCESS', payload: userData });
+                } else {
+                    clearStoredData();
+                    dispatch({ type: 'LOGOUT' });
                 }
-
-                dispatch({ type: 'LOGIN_SUCCESS', payload: userData });
             } else {
                 clearStoredData();
                 dispatch({ type: 'LOGOUT' });
